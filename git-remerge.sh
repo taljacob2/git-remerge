@@ -239,7 +239,6 @@ for FILE_PATH in $FILE_PATH_LIST; do
         rm $ORIG_FILE
     fi
     
-((j++))
 done
 
 # Update `FILE_PATH_LIST` only to the files that were iterated.
