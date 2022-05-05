@@ -60,10 +60,8 @@ for FILE_PATH in $FILE_PATH_LIST; do
 
     # ------ End skip the following files ------
 
-    NEW_FILE_PATH_LIST+=("$FILE_PATH")  # Add the current `FILE_PATH`
-
     # Print logs.
-    echo $LOG_TITLE "Diff In: $FILE_PATH"
+    # echo $LOG_TITLE "Diff In: $FILE_PATH"
 
     # Create parent files.
     git show $BASE_COMMIT:$FILE_PATH > $BASE_PARENT_PATH
@@ -83,6 +81,11 @@ for FILE_PATH in $FILE_PATH_LIST; do
     # Create a manual conflict file.
     CONFLICT_FILE=$FILE_PATH.conflict
     git diff --no-index -U$(wc -l $OURS_PARENT_PATH | awk '{print $1}') $OURS_PARENT_PATH $THEIRS_PARENT_PATH --output $CONFLICT_FILE
+
+    # If the conflict file is empty, then skip this file.
+    if ! [ -s "$CONFLICT_FILE" ]; then
+        continue
+    fi
 
     # Remove all lines until the line that begin with `+++` (included).
     sed -i '1,/^+++/d' $CONFLICT_FILE
@@ -225,20 +228,21 @@ for FILE_PATH in $FILE_PATH_LIST; do
     cp -f $ORIG_FILE $FILE_PATH
 
     # Remove helper files.
-    if [[ $REMOVE_PARENT_FILES ]]; then
+    if [[ "$REMOVE_PARENT_FILES" == true ]]; then
         rm $BASE_PARENT_PATH
         rm $OURS_PARENT_PATH
         rm $THEIRS_PARENT_PATH
     fi
 
-    if [[ $REMOVE_CONFLICT_FILE ]]; then
+    if [[ "$REMOVE_CONFLICT_FILE" == true ]]; then
         rm $CONFLICT_FILE
     fi
 
-    if [[ $REMOVE_ORIG_FILE ]]; then
+    if [[ "$REMOVE_ORIG_FILE" == true ]]; then
         rm $ORIG_FILE
     fi
     
+    NEW_FILE_PATH_LIST+=("$FILE_PATH")  # Add the current `FILE_PATH`
 done
 
 # Update `FILE_PATH_LIST` only to the files that were iterated.
