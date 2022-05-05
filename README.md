@@ -2,6 +2,12 @@
 
 # git-remerge
 
+An addition for `git merge` to be able to re-calculate the "merge", when two branches have already been merged. `git remerge` will first perform a normal `merge`, and afterwards, will re-calculate the conflicted files.
+
+## Why Use `git remerge`
+
+Sometimes `git merge` will output a `"Already up-to-date"` message, even though there is actually a difference between some of the files, when you `git diff` them manually. So in this case, we need a tool that will perform a `git merge` as usual, but for those files with the actual difference we want git to **re-calculate** the conflicts between them, so we could re-merge them.
+
 ## Installation
 
 ### Clone This Repository As A Subtree In Your Project
