@@ -25,7 +25,7 @@ THEIRS_COMMIT="${ARGS[0]}"
 BASE_COMMIT=$(git merge-base --octopus HEAD $THEIRS_COMMIT)  # Get base commit before the "merge" execution.
 git merge $THEIRS_COMMIT --no-ff  # Execute merge.
 git checkout $THEIRS_COMMIT . --merge > /dev/null 2>&1  # Force checkout all their files to see the conflicted files.
-REMERGE_DIFF_FILE=git-remerge-diff.txt
+REMERGE_DIFF_FILE=git-remerge/git-remerge-diff.txt
 git diff HEAD --name-only > $REMERGE_DIFF_FILE
 FILE_PATH_LIST=$(readFile $REMERGE_DIFF_FILE)
 git reset --hard
