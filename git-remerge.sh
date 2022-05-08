@@ -1,7 +1,5 @@
 #!/bin/bash
 
-source ./git-remerge/functions.sh
-
 REMOVE_PARENT_FILES=true  # Default is `true`. You may change this to `false`.
 REMOVE_CONFLICT_FILE=true  # Default is `true`. You may change this to `false`.
 REMOVE_ORIG_FILE=true  # Default is `true`. You may change this to `false`.
@@ -26,13 +24,14 @@ BASE_COMMIT=$(git merge-base --octopus HEAD $THEIRS_COMMIT)  # Get base commit b
 git merge $THEIRS_COMMIT --no-ff  # Execute merge.
 git checkout $THEIRS_COMMIT . --merge > /dev/null 2>&1  # Force checkout all their files to see the conflicted files.
 REMERGE_DIFF_FILE=git-remerge/git-remerge-diff.txt
-git diff HEAD --name-only > $REMERGE_DIFF_FILE
-FILE_PATH_LIST=$(readFile $REMERGE_DIFF_FILE)
+git diff HEAD --name-only > "$REMERGE_DIFF_FILE"
+readarray -t FILE_PATH_LIST < "$REMERGE_DIFF_FILE"  # Convert file to string list.
 git reset --hard
 
 NEW_FILE_PATH_LIST=()
-for FILE_PATH in $FILE_PATH_LIST; do
-
+for ((j = 0; j < ${#FILE_PATH_LIST[@]}; j++)); do
+    FILE_PATH="${FILE_PATH_LIST[j]}"
+    
     : '
     More info about string extraction:
     - [here](https://stackoverflow.com/a/965069/14427765).
@@ -45,12 +44,12 @@ for FILE_PATH in $FILE_PATH_LIST; do
     FILE_EXTENSION=$(echo "${FILE_PATH#*.}")
 
     # Define parent names and paths.
-    BASE_PARENT_NAME=$FILE_NAME_WITHOUT_EXTENSION.base.$FILE_EXTENSION
-    OURS_PARENT_NAME=$FILE_NAME_WITHOUT_EXTENSION.ours.$FILE_EXTENSION
-    THEIRS_PARENT_NAME=$FILE_NAME_WITHOUT_EXTENSION.theirs.$FILE_EXTENSION
-    BASE_PARENT_PATH=$FILE_LAST_DIR_PATH/$BASE_PARENT_NAME
-    OURS_PARENT_PATH=$FILE_LAST_DIR_PATH/$OURS_PARENT_NAME
-    THEIRS_PARENT_PATH=$FILE_LAST_DIR_PATH/$THEIRS_PARENT_NAME
+    BASE_PARENT_NAME="$FILE_NAME_WITHOUT_EXTENSION.base.$FILE_EXTENSION"
+    OURS_PARENT_NAME="$FILE_NAME_WITHOUT_EXTENSION.ours.$FILE_EXTENSION"
+    THEIRS_PARENT_NAME="$FILE_NAME_WITHOUT_EXTENSION.theirs.$FILE_EXTENSION"
+    BASE_PARENT_PATH="$FILE_LAST_DIR_PATH/$BASE_PARENT_NAME"
+    OURS_PARENT_PATH="$FILE_LAST_DIR_PATH/$OURS_PARENT_NAME"
+    THEIRS_PARENT_PATH="$FILE_LAST_DIR_PATH/$THEIRS_PARENT_NAME"
 
     # ------ Start skip the following files ------
 
@@ -64,9 +63,9 @@ for FILE_PATH in $FILE_PATH_LIST; do
     # echo $LOG_TITLE "Diff In: $FILE_PATH"
 
     # Create parent files.
-    git show $BASE_COMMIT:$FILE_PATH > $BASE_PARENT_PATH
-    git show HEAD:$FILE_PATH > $OURS_PARENT_PATH
-    git show $THEIRS_COMMIT:$FILE_PATH > $THEIRS_PARENT_PATH
+    git show $BASE_COMMIT:"$FILE_PATH" > "$BASE_PARENT_PATH"
+    git show HEAD:"$FILE_PATH" > "$OURS_PARENT_PATH"
+    git show $THEIRS_COMMIT:"$FILE_PATH" > "$THEIRS_PARENT_PATH"
 
     # Merge file.
     # git merge-file -p $OURS_PARENT_PATH $BASE_PARENT_PATH $THEIRS_PARENT_PATH > $FILE_PATH
@@ -75,12 +74,12 @@ for FILE_PATH in $FILE_PATH_LIST; do
     Make sure to add a newline at the end of the file, if there isn`t already.
     To avoid the `\ No newline at end of file` error message in the result `$CONFLICT_FILE`.
     '
-    sed -i -e '$a\' $OURS_PARENT_PATH
-    sed -i -e '$a\' $THEIRS_PARENT_PATH
+    sed -i -e '$a\' "$OURS_PARENT_PATH"
+    sed -i -e '$a\' "$THEIRS_PARENT_PATH"
 
     # Create a manual conflict file.
-    CONFLICT_FILE=$FILE_PATH.conflict
-    git diff --no-index -U$(wc -l $OURS_PARENT_PATH | awk '{print $1}') $OURS_PARENT_PATH $THEIRS_PARENT_PATH --output $CONFLICT_FILE
+    CONFLICT_FILE="$FILE_PATH.conflict"
+    git diff --no-index -U$(wc -l "$OURS_PARENT_PATH" | awk '{print $1}') "$OURS_PARENT_PATH" "$THEIRS_PARENT_PATH" --output "$CONFLICT_FILE"
 
     # If the conflict file is empty, then skip this file.
     if ! [ -s "$CONFLICT_FILE" ]; then
@@ -88,13 +87,13 @@ for FILE_PATH in $FILE_PATH_LIST; do
     fi
 
     # Remove all lines until the line that begin with `+++` (included).
-    sed -i '1,/^+++/d' $CONFLICT_FILE
+    sed -i '1,/^+++/d' "$CONFLICT_FILE"
 
     # Remove all lines that begin with `@@` and contain the characters `-` `,` `+` `,` (by this order) and end with `@@`.
-    sed -i '/^@@.*-.*,.*\+.*,.*@@$/d' $CONFLICT_FILE
+    sed -i '/^@@.*-.*,.*\+.*,.*@@$/d' "$CONFLICT_FILE"
 
     # Convert file to string list.
-    readarray -t CONFLICT_FILE_AS_STRING_LIST < $CONFLICT_FILE
+    readarray -t CONFLICT_FILE_AS_STRING_LIST < "$CONFLICT_FILE"
 
     : '
     Conflict parse algorithm:
@@ -219,34 +218,34 @@ for FILE_PATH in $FILE_PATH_LIST; do
     fi
 
     # Convert `$CONFLICT_FILE_AS_STRING_LIST` to .orig file.
-    ORIG_FILE=$FILE_PATH.orig
-    printf "%s\n" "${CONFLICT_FILE_AS_STRING_LIST[@]}" > $ORIG_FILE
+    ORIG_FILE="$FILE_PATH.orig"
+    printf "%s\n" "${CONFLICT_FILE_AS_STRING_LIST[@]}" > "$ORIG_FILE"
 
     # ---------------------------- Algorithm End ------------------------------
 
     # Overwrrite "our" file with .orig file.
-    cp -f $ORIG_FILE $FILE_PATH
+    cp -f "$ORIG_FILE" "$FILE_PATH"
 
     # Remove helper files.
     if [[ "$REMOVE_PARENT_FILES" == true ]]; then
-        rm $BASE_PARENT_PATH
-        rm $OURS_PARENT_PATH
-        rm $THEIRS_PARENT_PATH
+        rm "$BASE_PARENT_PATH"
+        rm "$OURS_PARENT_PATH"
+        rm "$THEIRS_PARENT_PATH"
     fi
 
     if [[ "$REMOVE_CONFLICT_FILE" == true ]]; then
-        rm $CONFLICT_FILE
+        rm "$CONFLICT_FILE"
     fi
 
     if [[ "$REMOVE_ORIG_FILE" == true ]]; then
-        rm $ORIG_FILE
+        rm "$ORIG_FILE"
     fi
     
     NEW_FILE_PATH_LIST+=("$FILE_PATH")  # Add the current `FILE_PATH`
 done
 
 # Update `FILE_PATH_LIST` only to the files that were iterated.
-FILE_PATH_LIST=${NEW_FILE_PATH_LIST[@]}
+FILE_PATH_LIST=$NEW_FILE_PATH_LIST
 unset NEW_FILE_PATH_LIST
 
 # -------------------------------- Message ------------------------------------
@@ -264,13 +263,11 @@ HEAD_NAME=$(git symbolic-ref --short HEAD)
 echo "The following files have conflicts that need to be resolved:"
 echo 
 
-for i in $FILE_PATH_LIST; do
-    echo $i
-done
+printf "%s\n" "${FILE_PATH_LIST[@]}"
 
 echo $LOG_HALF_BOUNDARY_SHORT FINISH GIT-REMERGE SUMMARY $LOG_HALF_BOUNDARY
 
 # Remove helper file.
-rm $REMERGE_DIFF_FILE
+rm "$REMERGE_DIFF_FILE"
 
 exit
